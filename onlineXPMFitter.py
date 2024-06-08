@@ -317,8 +317,14 @@ class grafit(tk.Frame):
             # self.plt.subplot(212)
             self.plt1.plot(t, wvPlot, 'g-')
             if islaser :
-                dataToFile[8] = round(100.0*max(peak1volt),2) #UV
-                dataToFile[9] = round(100.0*max(peak2volt),2) #IR
+                lasermax = 100.0*max(peak1volt)
+                if lasermax < 0 :
+                    lasermax = 0.0
+                dataToFile[8] = round(lasermax,2) #IR
+                lasermax = 100.0*max(peak2volt)
+                if lasermax < 0 :
+                    lasermax = 0.0
+                dataToFile[9] = round(lasermax,2) #UV
                 self.IRtext.delete(1.0, tk.END)
                 self.IRtext.insert( 1.0, str(dataToFile[8]) )
                 self.UVtext.delete(1.0, tk.END)

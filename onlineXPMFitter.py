@@ -147,63 +147,45 @@ def appendBox(parent):
     return appendBox.mode
 
 class grafit(tk.Frame):
-    def updateShutter(self, shutterState):
-        if shutterState == True:
-            print("shutter is Closed")
-        else:
-            print("shutter is Opened")
-        return
-
-    def captureRaw(self):
-        data = ''
-        f = urllib.request.urlopen('http://localhost:5022/?COMMAND=curve?') # connects to XPMSimulator.py
-        #f = urllib.request.urlopen('http://134.79.229.21/?COMMAND=curve?')
-        data = f.read().decode()
-        print('received ' + data)
-
-        wfm = [float(u) for u in data.split(',')]
-        # print(len(wfm))
-
-        # CALLING WFMPRE TO CONVERT WFM TO MS AND VOLTS
-        f2 = urllib.request.urlopen('http://localhost:5022/?COMMAND=wfmpre?')
-        #f2 = urllib.request.urlopen('http://134.79.229.21/?COMMAND=wfmpre?')
-        wfmpre = f2.read().decode()
-        # print(wfmpre)
-
-        # EXAMPLE WFMPRE:
-        # wfmpre = '1;8;ASC;RP;MSB;500;"Ch1, AC coupling, 2.0E-2 V/div, 4.0E-5 s/div, 500 points, Average mode";Y;8.0E-7;0;-1.2E-4;"s";8.0E-4;0.0E0;-5.4E1;"V"'
-        t = [1.0e6 * (float(wfmpre.split(';')[8]) * float(i) + float(wfmpre.split(';')[10])) for i in
-             range(0, len(wfm))]
-        volt = [1.0e3 * ( (float(dl) - float(wfmpre.split(';')[14])) * float(wfmpre.split(';')[12]) - float(
-            wfmpre.split(';')[13]) ) for dl in wfm]
-
-        return zip(t, volt)
-
-    def conditionWVF(self, signalBgd, background):
-
-        return signalBgd - background
-
-    def calcTAU(self, t, volt):
-        result = self.wavmodel.fit(wvPlot, self.wavparams, x=t, method='nelder')
-        # print('results--->', result.ci_out)
-
-        # result = self.wavmodel.fit(wvPlot[t<150],self.wavparams,x=t[t<150])
-        b = result.best_values
-        # errors = result.ci_out
-        tfine = np.arange(t[0], t[-1] + 0.8, (t[1] - t[0]) / 10.0)
-
-        ci_txt = result.ci_report()
-
-        cat = float(ci_txt.split('\n')[1].split('  ')[4])
-        an = float(ci_txt.split('\n')[2].split('  ')[4])
-
-        return
 
     def plotit(self,  text='' , dwell=0.0 , islaser=False ):
-        if islaser : #FIXME: the laser traces shouldn't just be getting ignored
-          return
+        baseurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c'))
+        if islaser : #Handle the laser traces
+            urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:trigger:position+30' ).read()
+            urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:main:scale+40e-6' ).read()
+            urllib.request.urlopen( baseurl + '/?COMMAND=ACQUIRE:MODE+SAMPLE' ).read() #KDW 2021-1-17 doing this clears the averaging
+            urllib.request.urlopen( baseurl + '/?COMMAND=ACQUIRE:MODE+AVERAGE' ).read() #and this starts it over from scratch
+            urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:trigger:position+30' ).read()
+            urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:main:scale+40e-9' ).read()
+            urllib.request.urlopen( baseurl + '/?COMMAND=data:source+CH2' ).read()
+            myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=wfmpre?'
+            f2 = urllib.request.urlopen( myurl )
+            wfmpre = f2.read().decode()
+            myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=curve?'
+            f = urllib.request.urlopen( myurl )
+            data = f.read().decode()
+            wfm = [float(u) for u in data.split(',')]
+            peak1volt = [1.0e1 * (((float(dl) - float(wfmpre.split(';')[14]))) * float(wfmpre.split(';')[12]) + float( wfmpre.split(';')[13])) for dl in wfm]
+            urllib.request.urlopen( baseurl + '/?COMMAND=data:source+CH3' ).read()
+            myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=wfmpre?'
+            f2 = urllib.request.urlopen( myurl )
+            wfmpre = f2.read().decode()
+            myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=curve?'
+            f = urllib.request.urlopen( myurl )
+            data = f.read().decode()
+            wfm = [float(u) for u in data.split(',')]
+            peak2volt = [1.0e1 * (((float(dl) - float(wfmpre.split(';')[14]))) * float(wfmpre.split(';')[12]) + float( wfmpre.split(';')[13])) for dl in wfm]
+
+        urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:trigger:position+30' ).read()
+        urllib.request.urlopen( baseurl + '/?COMMAND=horizontal:main:scale+40e-6' ).read()
+        urllib.request.urlopen( baseurl + '/?COMMAND=ACQUIRE:MODE+SAMPLE' ).read() #KDW 2021-1-17 doing this clears the averaging
+        urllib.request.urlopen( baseurl + '/?COMMAND=ACQUIRE:MODE+AVERAGE' ).read() #and this starts it over from scratch
+        urllib.request.urlopen( baseurl + '/?COMMAND=data:source+CH1' ).read()
         data = ''
-        f = urllib.request.urlopen('http://localhost:5022/?COMMAND=curve?')
+        #f = urllib.request.urlopen('http://localhost:5022/?COMMAND=curve?')
+        myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=curve?'
+        print(myurl)
+        f = urllib.request.urlopen( myurl )
         #f = urllib.request.urlopen('http://134.79.229.21/?COMMAND=curve?')
         data = f.read().decode()
         print('received ' + data)
@@ -212,7 +194,10 @@ class grafit(tk.Frame):
         # print(len(wfm))
 
         # CALLING WFMPRE TO CONVERT WFM TO MS AND VOLTS
-        f2 = urllib.request.urlopen('http://localhost:5022/?COMMAND=wfmpre?')
+        myurl = 'http://' + str(self.scopeIPText.get('1.0','end-1c')) + '/?COMMAND=wfmpre?'
+        print(myurl)
+        f2 = urllib.request.urlopen( myurl )
+        #f2 = urllib.request.urlopen('http://localhost:5022/?COMMAND=wfmpre?')
         #f2 = urllib.request.urlopen('http://134.79.229.21/?COMMAND=wfmpre?')
         wfmpre = f2.read().decode()
 
@@ -288,8 +273,6 @@ class grafit(tk.Frame):
             dataToFile[4] = round(float(cat),3)
             dataToFile[5] = round(float(an),3)
             dataToFile[6] = round(float(offst),3)
-            dataToFile[8] = float(0.0) #UV
-            dataToFile[9] = float(0.0) #IR
             dataToFile[10] = float(result.chisqr/result.nfree) #reduced chisq
             dataToFile[11] = float(0.0)
             dataToFile[12] = float(0.0)
@@ -333,6 +316,21 @@ class grafit(tk.Frame):
             # PLOTTING WAVEFORM:
             # self.plt.subplot(212)
             self.plt1.plot(t, wvPlot, 'g-')
+            if islaser :
+                dataToFile[8] = round(100.0*max(peak1volt),2) #UV
+                dataToFile[9] = round(100.0*max(peak2volt),2) #IR
+                self.IRtext.delete(1.0, tk.END)
+                self.IRtext.insert( 1.0, str(dataToFile[8]) )
+                self.UVtext.delete(1.0, tk.END)
+                self.UVtext.insert( 1.0, str(dataToFile[9]) )
+                self.plt1.plot(t, peak1volt, 'm-')
+                self.plt1.plot(t, peak2volt, 'c-')
+                self.maxIR.append( dataToFile[8] )
+                self.maxUV.append( dataToFile[9] )
+                self.laserX.append(self.xar[-1])
+                self.plt2.plot(self.laserX, self.maxIR, 'mo')
+                self.plt2.plot(self.laserX, self.maxUV, 'co')
+
             tfine = np.arange(t[0], t[-1] + 0.8, (t[1] - t[0]) / 10.0)
             
             if self.isStandard :
@@ -547,7 +545,7 @@ class grafit(tk.Frame):
                     total = total + 1 
                     schedule.enter( total, 1, root.graph.plotit , argument = ('Getting UV Laser trace ',1.0,True) )
                     total = total + 1 
-                    schedule.enter( total, 1, root.graph.plotit , argument = ('Getting IR Laser trace ',1.0,True) )
+                    schedule.enter( total, 1, root.graph.plotit , argument = ('Getting IR Laser trace ',31.0,True) )
                     if isfibersave and iii == 9 : 
                         text = '*Fiber-saving mode: ---CLOSING SHUTTER--- '
                         #print(text)
@@ -577,9 +575,9 @@ class grafit(tk.Frame):
           self.saveFile.close()"""
 
       self.savePath=self.fileSaveInput.get('1.0', 'end-1c')
-      self.currSavePath = tk.Label(height=1, width=30)
-      self.currSavePath.config(text="File Path: " + self.savePath)
-      self.currSavePath.grid(row=2, column=1)
+      #self.currSavePath = tk.Label(height=1, width=30)
+      #self.currSavePath.config(text="File Path: " + self.savePath)
+      #self.currSavePath.grid(row=2, column=1)
 
       if total: # stops the program from trying to start if it's already running
           tk.messagebox.showerror(title="Error", message='Program is already running!')
@@ -741,22 +739,41 @@ class grafit(tk.Frame):
         self.yar = []
         self.el = []
         self.eh = []
+        self.maxIR = []
+        self.maxUV = []
+        self.laserX = []
 	
-	    # seconds to wait between captures
+	# seconds to wait between captures
+        self.dummyspacer3 = tk.Label(height=1,width=1)
+        self.dummyspacer3.config(text=' ')
+        self.dummyspacer3.config(bg=parent['background'])
+        self.dummyspacer3.grid(row=18,column=0)
         self.waitT_label = tk.Label(height=1, width=30)
         self.waitT_label.config(text="Seconds to wait between captures")
-        self.waitT_label.grid(row=18, column=1)
+        self.waitT_label.grid(row=18, column=1, sticky = tk.E)
 
         # seconds to wait input 
         defaultTime = tk.StringVar(self.parent)
         defaultTime.set('33.0')  ### 33.0
         self.waitT_input = tk.Spinbox(self.parent, increment=1.0, foreground='black', background='white', textvariable=defaultTime)
-        self.waitT_input.grid(row=19, column=1)
+        self.waitT_input.grid(row=19, column=1, sticky=tk.W)
 
         # next two lines are for the texbox for entries
-        self.fileSaveInput = tk.Text( height=1, width=24, bg='gray') # text box( where user enters path)
-        self.fileSaveInput.insert(tk.END,'testData')
-        self.fileSaveInput.grid( row=24, column=1)
+        self.fileSaveInput = tk.Text( height=3, width=24) # text box( where user enters path)
+        self.fileSaveInput.insert(tk.END,os.getcwd() + os.sep + 'xpm_fitter_data' + os.sep + 'testData')
+        self.fileSaveInput.grid( row=24, column=1, sticky=tk.W)
+
+        # the scope IP address LABEL
+        self.scopeIPLabel = tk.Label(height=1, width=24)
+        self.scopeIPLabel.config(text='Scope IP Address')
+        self.scopeIPLabel.grid( row = 30 , column=1, sticky=tk.W)
+        # the scope IP address TEXT
+        self.scopeIPText = tk.Text( height=1, width=18 )
+        self.scopeIPText.insert(tk.END, '134.79.229.21')
+        self.scopeIPText.grid( row=31, column=1,sticky=tk.W)
+        self.scopeIPText.tag_add('rightjust',1.0,tk.END)
+        self.scopeIPText.tag_config('rightjust',justify=tk.RIGHT)
+        
 
         # button to commit the save path ( technically starts before)
         self.commitLocationButton = tk.Button(text="Start", command=lambda:self.set_saveFile())
@@ -810,10 +827,29 @@ class grafit(tk.Frame):
         self.startTime.config(state='disabled')
         self.startTime.grid( row=71, column=5, columnspan=3, sticky = tk.W)
 
+        self.dummyspacer5 = tk.Label(height=1,width=1)
+        self.dummyspacer5.config(text=' ')
+        self.dummyspacer5.config(bg=parent['background'])
+        self.dummyspacer5.grid(row=72,column=5)
+
+        self.IRLabel = tk.Label( height =1, width=12 )
+        self.IRLabel.config(text='IR signal [mV]')
+        self.IRLabel.grid(row=73,column=6, sticky=tk.E)
+        self.IRtext = tk.Text(height=1, width=12 )
+        self.IRtext.insert(tk.END,'0.00')
+        self.IRtext.grid(row=74,column=6, sticky=tk.E)
+
+        self.UVLabel = tk.Label( height =1, width=12 )
+        self.UVLabel.config(text='UV signal [mV]')
+        self.UVLabel.grid(row=73,column=8,sticky=tk.W)
+        self.UVtext = tk.Text(height=1, width=12 )
+        self.UVtext.insert(tk.END,'0.00')
+        self.UVtext.grid(row=74,column=8,sticky=tk.W)
+
         self.dummyspacer2 = tk.Label(height=1,width=1)
         self.dummyspacer2.config(text=' ')
         self.dummyspacer2.config(bg=parent['background'])
-        self.dummyspacer2.grid(row=72,column=5)
+        self.dummyspacer2.grid(row=75,column=5)
         
         #Stats Info Display 
         self.eventNumName = tk.Label(height=1, width=6)
@@ -824,7 +860,7 @@ class grafit(tk.Frame):
         self.eventNumLabel.config(state='disabled')
         self.eventNumLabel.grid(row=65, column=6)
         
-        self.lifetimeName = tk.Label(height=1, width=6)
+        self.lifetimeName = tk.Label(height=1, width=7)
         self.lifetimeName.config(text='Lifetime')
         self.lifetimeName.grid(row=65, column=7)
         self.lifetimeLabel = tk.Text(height=1, width=11, wrap='none') 
@@ -853,7 +889,7 @@ class grafit(tk.Frame):
         self.anodeLabel.config(state='disabled')
         self.anodeLabel.grid(row=66, column=6)
         
-        self.tcName = tk.Label(height=1, width=6)
+        self.tcName = tk.Label(height=1, width=7)
         self.tcName.config(text='Tc')
         self.tcName.grid(row=66, column=7)
         self.tcLabel = tk.Text(height=1, width=11, wrap='none') 
@@ -877,7 +913,7 @@ class grafit(tk.Frame):
         self.taLabel.config(state='disabled')
         self.taLabel.grid(row=67, column=6)
         
-        self.tariseName = tk.Label(height=1, width=6)
+        self.tariseName = tk.Label(height=1, width=7)
         self.tariseName.config(text='Tarise')
         self.tariseName.grid(row=67, column=7)
         self.tariseLabel = tk.Text(height=1, width=11, wrap='none') 

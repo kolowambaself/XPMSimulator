@@ -550,7 +550,7 @@ class grafit(tk.Frame):
                     #text = 'Acquisition mode ---SHUTTER OPEN--- capturing laser traces '
                     total = total + 1 
                     schedule.enter( total, 1, root.graph.plotit , argument = ('Getting UV Laser trace ',1.0,True) )
-                    total = total + 1 
+                    total = total + 31 
                     schedule.enter( total, 1, root.graph.plotit , argument = ('Getting IR Laser trace ',31.0,True) )
                     if isfibersave and iii == 9 : 
                         text = '*Fiber-saving mode: ---CLOSING SHUTTER--- '

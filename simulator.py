@@ -199,9 +199,12 @@ class Graph(tk.Frame):
         self.filename = filedialog.askopenfilename(initialdir='C:/Users/skyphysics/',title='select a file',filetypes=[("Text Files","*.txt") , ("Data Files","*.dat")])
         self.f = open(self.filename)
         myreader = csv.reader(self.f,delimiter=',')
+        mVs = np.array([ row[1] for row in myreader])
+        if len( mVs ) > 500 :
+            mVs = mVs[::20]
         datalevels = []
-        for row in myreader :
-            millivolt = float(row[1])
+        for row in mVs :
+            millivolt = float(row)
             dl = float(self.preamble.split(';')[14]) + (millivolt/1000.0 - float(self.preamble.split(';')[13])) / float(self.preamble.split(';')[12])
             datalevels.append(str(int(dl)))
         self.textfile = ','.join(datalevels) #self.f.read()

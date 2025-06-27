@@ -10,6 +10,7 @@ except ModuleNotFoundError:
     from ttk import *
 
 import csv
+import sys
 import threading
 import matplotlib
 from pathlib import WindowsPath
@@ -31,7 +32,8 @@ from lmfit import Model
 from scipy import interpolate
 from lmfit.models import ExponentialGaussianModel
 
-isRandom = False
+#isRandom = False
+isRandom = True
 noisetrace = []
 for i in range(0,500) :
     noisetrace.append( random.gauss(0.0,0.066) )
@@ -224,6 +226,7 @@ class Graph(tk.Frame):
             millivolt = float(row[1])
             dl = float(self.preamble.split(';')[14]) + (millivolt/1000.0 - float(self.preamble.split(';')[13])) / float(self.preamble.split(';')[12])
             datalevels.append(str(int(dl)))
+        datalevels = datalevels[::20]
         self.background = ','.join(datalevels) #self.f.read()
         #self.background = self.f2.read()
         #self.background = ','.join([ str( int((int(s)-float(self.preamble.split(';')[14]))*256) ) for s in self.background.split(',')]) + '\n'
@@ -269,7 +272,34 @@ class Graph(tk.Frame):
                   range(0, 500)]
         self.t = np.array(self.t)
 
-        wavparams = self.wavmodel.make_params()
+        self.wavmodel = Model(self.voutmodel, nan_policy='raise')
+        #self.waveform = self.wavmodel.eval(
+        #    x=self.t,
+        #    cat=cathode,
+        #    sig_c=1.7609219600102581,
+        #    tau_c=1.9515217542315728,
+        #    sig_a=1.7447460794807716,
+        #    tau_a=3.2831443786549777,
+        #    sig_b=0.8297020700839306,
+        #    tau_b=0.5808286044655545,
+        #    u=0.6074047158416261,
+        #    tau_e=lifetime,
+        #    tc=10.0,
+        #    ta=81.9)
+        self.waveform = self.wavmodel.eval(
+            x=self.t,
+            cat=float(sys.argv[1]),
+            sig_c=float(sys.argv[2]),
+            tau_c=float(sys.argv[3]),
+            sig_a=float(sys.argv[4]),
+            tau_a=float(sys.argv[5]),
+            sig_b=float(sys.argv[6]),
+            tau_b=float(sys.argv[7]),
+            u=float(sys.argv[8]),
+            tau_e=float(sys.argv[9]),
+            tc=10.0,
+            ta=81.9)
+        '''wavparams = self.wavmodel.make_params()
         wavparams['cat'].value = cathode
         wavparams['an'].value = downstroke
         wavparams['offst'].value = 0.4508981196975133
@@ -295,11 +325,11 @@ class Graph(tk.Frame):
             gam_a=  2.772346 ,
             skew_a= 0.3434182,
             #thold=self.p_i[3],
-        )
+        )'''
         global noisetrace
         if isRandom :
           for i in range(0,500) :
-            noisetrace[i] = ( random.gauss(0.0,0.066) )
+            noisetrace[i] = ( random.gauss(0.0,0.22) )
         for i in range(0,len(self.waveform)) :
           self.waveform[i] = self.waveform[i] + noisetrace[i] 
 
@@ -373,6 +403,22 @@ class Graph(tk.Frame):
         y = y - integral_a * np.exp(-(x - 81.9) / 395.3)
         y = y + offst
         return y
+
+    def voutmodel(self,x,cat,sig_c,tau_c,sig_a,tau_a,sig_b,tau_b,tau_e,u,tc,ta) :
+        sr2 = np.sqrt(2.0)
+        DELTAT = 4.000000000000625e-08
+        CF = 10.0e-12 #UA1 preamp feedback cap
+        RF = (395.3e-6)/CF #UA1 feedback resistance
+        C = (cat/1000.0)*(CF/1.0e-6) #Note that parameter C is in C/s, but cat is in mA⋅us/F. Note also that CF=10 pF
+        i_c = (C/(2*tau_c))*np.exp(-sig_c*sig_c/(2*tau_c*tau_c))*np.exp((tc-x)/tau_c)*erfc((tc-x)/(sr2*sig_c))
+        i_a = (C*(1-u)/(2*tau_a))*np.exp(-sig_a*sig_a/(2*tau_a*tau_a))*np.exp((ta-x)/tau_a)*erfc((ta-x)/(sr2*sig_a))*np.exp(-(ta-tc)/tau_e)
+        i_a = i_a + (C*u/(2*tau_b))*np.exp(-sig_b*sig_b/(2*tau_b*tau_b))*np.exp((ta-x)/tau_b)*erfc((ta-x)/(sr2*sig_b))*np.exp(-(ta-tc)/tau_e)
+        ioftprime = i_c - i_a
+        integrand = ioftprime*np.exp(x*1.0e-6/(RF*CF))
+        vout = np.exp(-x*1.0e-6/(RF*CF))*integrate.cumulative_trapezoid(integrand, x*1.0e-6, dx=DELTAT, initial=0)/CF
+        vout = vout*1000.0 #convert to millivolts
+        return vout
+            
 class GraphFrame(tk.Frame):
     """ Shows the components of the graph! """
 
